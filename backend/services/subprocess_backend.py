@@ -483,6 +483,18 @@ class SubprocessBackend(TTSBackend):
         raise NotImplementedError
 
     @classmethod
+    def shares_parent_torch(cls) -> bool:
+        """Whether the sidecar runs this process's interpreter, and so imports
+        this process's PyTorch build.
+
+        Must stay cheap and side-effect free: the Settings GPU report asks it
+        for every subprocess engine, so it may not resolve, probe or bootstrap
+        a venv the way some ``venv_python()`` implementations do. Subclasses
+        whose ``venv_python()`` can return ``sys.executable`` override it.
+        """
+        return False
+
+    @classmethod
     def sidecar_script(cls) -> Path:
         """Path to the sidecar entrypoint (`backend/engines/<id>/main.py`)."""
         raise NotImplementedError
@@ -776,9 +788,21 @@ class SubprocessBackend(TTSBackend):
                     except (TypeError, ValueError):
                         pass
                 return True, "pong"
-            return False, f"unexpected reply: {reply!r}"
+            result = (False, f"unexpected reply: {reply!r}")
         except Exception as exc:
-            return False, f"{type(exc).__name__}: {exc}"
+            result = (False, f"{type(exc).__name__}: {exc}")
+        self._log_health_failure(result[1])
+        return result
+
+    def _log_health_failure(self, message: str) -> None:
+        """Keep the reason in the local log. The HTTP route withholds engine
+        text from its response and log line, so without this a failed probe
+        could not be told apart from a missing install (#2837)."""
+        from core.scrub import scrub_text
+
+        logger.warning(
+            "[%s] health check failed: %s", self.id, scrub_text(str(message))[:_STDERR_TAIL_CHARS]
+        )
 
     def generate(self, text: str, **kw) -> torch.Tensor:
         """Synthesize one utterance through the sidecar.

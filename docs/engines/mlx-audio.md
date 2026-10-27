@@ -39,11 +39,23 @@ One backend hosts many models. The curated set:
 | `chatterbox` | `mlx-community/Chatterbox-TTS-4bit` | expressive |
 | `melotts` | `mlx-community/MeloTTS-English-v3-MLX` | lightweight VITS |
 | `outetts` | `mlx-community/Llama-OuteTTS-1.0-1B-4bit` | LM-based |
+| `voxcpm2` | `mlx-community/VoxCPM2-8bit` | 30 languages, 48 kHz studio output (needs `mlx-audio` 0.4.4+) |
 
 Pick a model in the **Model Catalogue** curated picker
 ([#981](https://github.com/debpalash/VoiceStudio/issues/981)) or set
 `OMNIVOICE_MLX_AUDIO_MODEL` to either a curated key (`kokoro`) or any full
 HF repo id. The env var overrides the persisted UI choice.
+
+## OuteTTS voice cloning
+
+OuteTTS reads the reference clip with a Whisper model before it clones the
+voice. Download **Whisper large-v3 Turbo (OuteTTS voice-clone reader,
+mlx-audio)** (`mlx-community/whisper-large-v3-turbo-asr-fp16`) from **Model
+Catalogue** first; without it, generation stops right away and names that entry
+instead of downloading during synthesis
+([#2700](https://github.com/debpalash/VoiceStudio/issues/2700)). The voice
+built from each clip is kept under `outetts_speakers/` in the data folder, so
+later generations with the same clip skip that step.
 
 ## First use of CSM
 
@@ -81,6 +93,11 @@ app's model download flow rather than installing into an unrelated system Python
 
 - Output is 24 kHz mono. Results from models with a different native rate
   (such as Dia at 44.1 kHz) are resampled before stitching and export.
+- Model errors, including errors after partial audio output, stop generation
+  without retrying in a default voice. Optional inputs are omitted only when
+  the model's callable signature does not accept them; supported voice,
+  reference and language inputs, plus voice-design instructions (`instruct`),
+  remain in the same request.
 - **Cloning works only with the `csm` model** — it is the only curated model
   confirmed to accept a reference clip. Other models silently ignore
   reference audio, so the engine reports cloning support only when CSM is

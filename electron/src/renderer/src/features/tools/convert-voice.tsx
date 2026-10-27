@@ -7,10 +7,13 @@ import { ArrowLeftRightIcon, MicIcon, SquareIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { LanguagePicker } from '@/features/clone/language-picker';
+import { CONVERT_SOURCE_LANGUAGES } from './convert-languages';
 import { PipelineFailure } from '@/components/pipeline-failure';
 import { AgentFixButton } from '@/components/agent-fix-button';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { WaveformPlayer } from '@/components/waveform-player';
+import { SaveAudioButton } from '@/components/save-audio-button';
 import { useEngines } from '@/hooks/use-engines';
 import { useProfiles } from '@/hooks/use-profiles';
 import { useRecording } from '@/hooks/use-recording';
@@ -25,11 +28,12 @@ export function ConvertVoice() {
   const engines = useEngines();
   const canClone = engines.activeTtsReady && engines.activeTts?.supports_cloning === true;
   const client = useQueryClient();
-  const { file, voice, search, match, result } = useConversion();
+  const { file, voice, search, match, language, result } = useConversion();
   const setFile = (value: File | null) => setConversion('file', value);
   const setVoice = (value: string) => setConversion('voice', value);
   const setSearch = (value: string) => setConversion('search', value);
   const setMatch = (value: boolean) => setConversion('match', value);
+  const setLanguage = (value: string) => setConversion('language', value);
   const setResult = (value: ConvertResult | null) => setConversion('result', value);
   const [sourceUrl, setSourceUrl] = useState('');
   const [error, setError] = useState('');
@@ -83,7 +87,7 @@ export function ConvertVoice() {
     setNeedsModel(false);
     setResult(null);
     try {
-      const converted = await convertSpeech(file, voice, match, controller.signal);
+      const converted = await convertSpeech(file, voice, match, controller.signal, language);
       if (!controller.signal.aborted) {
         setResult(converted);
         void client.invalidateQueries({ queryKey: queryKeys.history });
@@ -204,6 +208,21 @@ export function ConvertVoice() {
           )}
         </div>
       </section>
+      <div className="space-y-2 text-sm">
+        <p>{t('convert.source_language')}</p>
+        <div>
+          <LanguagePicker
+            value={language}
+            supportedOptions={CONVERT_SOURCE_LANGUAGES}
+            recentsScope="convert-source-language"
+            disabled={busy}
+            onValueChange={(value) => {
+              invalidate();
+              setLanguage(value);
+            }}
+          />
+        </div>
+      </div>
       <div className="space-y-1">
         <label className="flex items-center gap-3 text-sm">
           <Switch
@@ -278,7 +297,13 @@ export function ConvertVoice() {
       </div>
       {result && (
         <section className="space-y-3 border-t pt-4" aria-label={t('convert.result_kicker')}>
-          <h3 className="text-sm font-medium">{t('convert.result_kicker')}</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-medium">{t('convert.result_kicker')}</h3>
+            <SaveAudioButton
+              url={apiPath(result.audio_url)}
+              suggestedName={`voicestudio-${result.id}.wav`}
+            />
+          </div>
           <WaveformPlayer src={apiPath(result.audio_url)} source="convert-result" height={40} />
           <p className="text-sm">
             <span className="text-muted-foreground">{t('convert.transcript')}: </span>

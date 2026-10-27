@@ -583,10 +583,15 @@ def _typed_speech_http_error(e: Exception) -> Optional[HTTPException]:
 
 def _run_tts(backend, text: str, kw: dict):
     """Run TTS inference in the GPU thread pool."""
-    from services.audio_dsp import apply_mastering, normalize_audio
+    import torch
+    from services.audio_dsp import apply_mastering, normalize_audio, trim_speech_padding
     from services.watermark import mark_synthetic
     wav = backend.generate(text, **kw)
     sr = backend.sample_rate
+    # Strip the engine's lead-in/tail silence, as /generate does — unless the
+    # caller asked for an exact `duration`, which a trim would shorten.
+    if not kw.get("duration") and torch.is_tensor(wav):
+        wav = trim_speech_padding(wav, sr)
     # Engines that already emit mastered, studio-grade audio (e.g. VoxCPM2's
     # native 48 kHz) opt out of apply_mastering via `applies_own_mastering`.
     # That chain's highpass + Compressor is tuned for VoiceStudio's 24 kHz clone
@@ -712,8 +717,11 @@ async def create_speech(req: SpeechRequest):
                 kw["ref_audio"] = contained_join(VOICES_DIR, row["ref_audio_path"])
             if row["ref_text"]:
                 kw["ref_text"] = row["ref_text"]
-            if row["instruct"] and not instruct:
-                kw["instruct"] = row["instruct"]
+            if not instruct:
+                from services.voice_design_profiles import profile_instruct
+                stored_instruct = profile_instruct(row, backend.id)
+                if stored_instruct:
+                    kw["instruct"] = stored_instruct
             if req.seed is None and row["seed"] is not None:
                 kw["seed"] = row["seed"]
         else:
@@ -1044,7 +1052,7 @@ async def _transcribe_request(
         explicit_engine = model if _is_asr_engine_id(model) else None
 
         def _run():
-            backend = load_active_asr_backend()
+            backend = load_active_asr_backend(warm=True)
             if explicit_engine and getattr(backend, "id", None) != explicit_engine:
                 raise _ModelNotActive(explicit_engine, getattr(backend, "id", "?"))
             extra = _backend_request_kwargs(backend, options)
@@ -1317,18 +1325,30 @@ def list_voices():
                 "SELECT id, name, language FROM voice_profiles ORDER BY name"
             ).fetchall()
         name_counts = Counter(_voice_name_key(r["name"]) for r in rows)
+        # An exact id always wins in _resolve_voice_profile, so a profile
+        # named exactly like ANOTHER profile's id is not name-addressable
+        # (#2751). Self-ID names stay addressable; case/whitespace variants
+        # still resolve by name because the id lookup is exact.
+        profile_ids = {r["id"] for r in rows}
         for row in rows:
             key = _voice_name_key(row["name"])
+            collides_with_other_id = row["name"] in profile_ids and row["name"] != row["id"]
             voices.append({
                 "voice_id": row["id"],
                 "name": row["name"],
                 "type": "profile",
                 "language": row["language"],
                 "addressable_by_name": bool(key) and name_counts[key] == 1
-                and not _name_is_reserved(key),
+                and not _name_is_reserved(key)
+                and not collides_with_other_id,
             })
     except Exception:
         logger.warning("Voice profiles could not be loaded; returning built-in aliases only")
+
+    # OpenAI-compatible clients such as Open WebUI read each voice's `id`
+    # (#2679); `voice_id` stays for existing callers.
+    for voice in voices:
+        voice["id"] = voice["voice_id"]
 
     return {"voices": voices, "engines": backends}
 

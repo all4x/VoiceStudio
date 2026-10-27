@@ -1,53 +1,59 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
 
-const mock = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  output: vi.fn(),
+}));
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string) => key }),
 }));
-vi.mock('@/components/save-audio-button', () => ({ SaveAudioButton: () => <div>save</div> }));
-vi.mock('@/components/waveform-player', () => ({ WaveformPlayer: () => <div>player</div> }));
-vi.mock('@/lib/api/client', () => ({ audioUrl: (path: string) => `/audio/${path}` }));
+vi.mock('@/lib/store/output', () => ({
+  useLatestOutput: mocks.output,
+  clearLatestOutput: vi.fn(),
+}));
+vi.mock('@/components/waveform-player', () => ({
+  WaveformPlayer: ({ src }: { src: string }) => <div data-testid="player" data-src={src} />,
+}));
+vi.mock('@/components/save-audio-button', () => ({ SaveAudioButton: () => null }));
 vi.mock('@/hooks/use-history', () => ({
-  useDeleteHistoryItem: () => ({ mutate: mock.mutate, isPending: false }),
+  useDeleteHistoryItem: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock('./audio-quality', () => ({ AudioQuality: () => null }));
 vi.mock('./audio-file-details', () => ({ AudioFileDetails: () => null }));
 
-import { outputStore, setLatestOutput } from '@/lib/store/output';
+import type { GenerateResult } from '@/lib/api/types';
 import { OutputPanel } from './output-panel';
 
-const take = (id: string | null) =>
-  ({
-    blob: new Blob(['wav']),
-    id,
-    audioPath: id ? `${id}.wav` : null,
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+function result(audioPath: string | null): GenerateResult {
+  return {
+    blob: new Blob(['audio'], { type: 'audio/wav' }),
+    id: 'take-1',
+    audioPath,
     durationSeconds: 1,
-    genTimeSeconds: 1,
-  }) as never;
+    genTimeSeconds: 2,
+    seed: 3,
+    routing: null,
+    dropped: null,
+  };
+}
 
-beforeEach(() => {
-  mock.mutate.mockReset();
-  URL.createObjectURL = vi.fn(() => 'blob:take');
-  URL.revokeObjectURL = vi.fn();
-});
+it('plays a completed take from its persistent audio path instead of a revocable blob URL', () => {
+  mocks.output.mockReturnValue({
+    result: result('take-1.wav'),
+    objectUrl: 'blob:http://localhost/revoked',
+    text: 'Hello',
+  });
 
-it('deletes the take from history, then clears the preview', () => {
-  setLatestOutput(take('take-1'), 'hello');
-  mock.mutate.mockImplementation((_id: string, opts: { onSuccess: () => void }) =>
-    opts.onSuccess(),
+  render(<OutputPanel />);
+
+  expect(screen.getByTestId('player')).toHaveAttribute(
+    'data-src',
+    '/api/audio/take-1.wav',
   );
-  render(<OutputPanel />);
-  fireEvent.click(screen.getByRole('button', { name: 'clone.history_delete' }));
-  expect(mock.mutate).toHaveBeenCalledWith('take-1', expect.anything());
-  expect(outputStore.state.result).toBeNull();
-});
-
-it('only clears the preview when the take was never saved', () => {
-  setLatestOutput(take(null), 'hello');
-  render(<OutputPanel />);
-  fireEvent.click(screen.getByRole('button', { name: 'clone.history_delete' }));
-  expect(mock.mutate).not.toHaveBeenCalled();
-  expect(outputStore.state.result).toBeNull();
 });

@@ -139,6 +139,7 @@ export function toGenerateForm(input: CloneGenerateInput): FormData {
   form.append('num_step', String(input.steps));
   form.append('wav_bits', String(input.wavBits ?? 16));
   form.append('effect_preset', input.effectPreset ?? 'broadcast');
+  if (input.presetVoice) form.append('preset_voice', input.presetVoice);
   form.append('guidance_scale', String(input.cfg));
   form.append('speed', String(input.speed));
   form.append('denoise', String(input.denoise));
@@ -152,6 +153,9 @@ export function toGenerateForm(input: CloneGenerateInput): FormData {
 
   if (input.profileId) {
     form.append('profile_id', input.profileId);
+    // A manual correction overrides the saved transcript. Omit blank input so
+    // whitespace cannot shadow the profile's existing reference text.
+    if (input.refText?.trim()) form.append('ref_text', input.refText);
   } else if (input.refAudio) {
     const name =
       input.refAudioName ||
@@ -169,6 +173,12 @@ export function toGenerateForm(input: CloneGenerateInput): FormData {
     if (instruct) form.append('instruct', instruct);
   }
   if (input.designRecipe) form.append('design_recipe', JSON.stringify(input.designRecipe));
+  if (input.emoVector) {
+    form.append('emo_vector', JSON.stringify(input.emoVector));
+  } else if (input.emoText?.trim()) {
+    form.append('emo_text', input.emoText.trim());
+    if (input.emoAlpha !== undefined) form.append('emo_alpha', String(input.emoAlpha));
+  }
   return form;
 }
 

@@ -22,7 +22,7 @@ Design rules (load-bearing):
     display name from electron/src/shared/languages.json or an ISO-ish code — both
     resolve via :func:`_num2words_lang`), or through a hand-written native
     verbalizer for languages num2words lacks (``_NATIVE_VERBALIZERS``, e.g.
-    Malayalam). Everything else keeps its digits.
+    Malayalam, Urdu). Everything else keeps its digits.
     Clock times / ordinals / currency are English-only (their spoken form is
     language-specific); decimals only for locales whose num2words rendering
     was vetted. CJK scripts pass through the safety filters untouched — no
@@ -81,11 +81,14 @@ ENV_VAR = "OMNIVOICE_TEXT_NORMALIZATION"
 _FULL_NAME_TO_CODE = {
     "english": "en",
     "malayalam": "ml",
+    "urdu": "ur",
     "german": "de",
     "spanish": "es",
     "french": "fr",
     "italian": "it",
     "portuguese": "pt",
+    "portuguese (brazil)": "pt",
+    "portuguese (portugal)": "pt",
     "dutch": "nl",
     "russian": "ru",
     "ukrainian": "uk",
@@ -197,6 +200,27 @@ def _num2words_lang(language: Optional[str]) -> Optional[str]:
         if c in _NUM2WORDS_LANGS:
             return c
     return None
+
+
+# num2words spells some variants with their own locale: its ``pt`` is European
+# Portuguese ("dezasseis") and ``pt_BR`` Brazilian ("dezesseis"). Rule tables
+# stay keyed by the base code; only the num2words call takes the locale.
+_NUM2WORDS_DIALECT_LOCALES = {"pt-BR": "pt_BR", "pt-PT": "pt"}
+
+
+def _num2words_locale(language: Optional[str], lang: str) -> str:
+    """num2words locale for ``lang`` honouring the request's dialect (#3143).
+
+    A plain "Portuguese"/"pt" means Brazilian Portuguese, so it uses
+    ``pt_BR``; before the split every Portuguese request — even "pt-BR" —
+    was read with European number words.
+    """
+    from core.language_variants import dialect_for
+
+    dialect = dialect_for(language)
+    if dialect and dialect.split("-", 1)[0] == lang:
+        return _NUM2WORDS_DIALECT_LOCALES.get(dialect, lang)
+    return lang
 
 
 def _plain_lang_code(language: Optional[str]) -> Optional[str]:
@@ -461,7 +485,13 @@ def _expand_abbreviations(text: str, lang: str) -> str:
     pattern, lookup = entry
 
     def _repl(m: re.Match) -> str:
-        return lookup.get(m.group(0), m.group(0))
+        expansion = lookup.get(m.group(0), m.group(0))
+        # "No.5" / "Nr.5": the digit guard admits a number glued to the
+        # abbreviation, and the expansion must not be glued to it in turn
+        # ("number5" is a word the number pass leaves alone).
+        if expansion != m.group(0) and m.string[m.end():m.end() + 1].isdigit():
+            expansion += " "
+        return expansion
 
     return pattern.sub(_repl, text)
 
@@ -493,6 +523,45 @@ _INTEGER_RE = re.compile(
     r"(?<![\w.,:/$%-])(?!0\d)(\d{1,6})(?![\w:/%-])(?![.,]\d)"
 )
 
+# Day-of-month ordinals in the locales that mark ordinals with a period
+# ("am 3. Mai", "den 17. mai", "3. května"). The spoken form inflects with the
+# phrase, so the day is left as written before a month name; the integer rule
+# used to speak the cardinal and leave the period behind ("drei. Mai").
+_DATE_MONTHS = {
+    "de": r"Jan(?:uar|\.)|Jänner|Feb(?:ruar|\.)|März|Mär\.|Mrz\.|Apr(?:il|\.)|Mai|Jun(?:i|\.)"
+          r"|Jul(?:i|\.)|Aug(?:ust|\.)|Sep(?:tember|t\.|\.)|Okt(?:ober|\.)|Nov(?:ember|\.)"
+          r"|Dez(?:ember|\.)",
+    "da": r"januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december",
+    "no": r"januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember",
+    "fi": r"(?:tammi|helmi|maalis|huhti|touko|kesä|heinä|elo|syys|loka|marras|joulu)kuu\w*",
+    "cs": r"led(?:en|na)|únor[a]?|břez(?:en|na)|dub(?:en|na)|květ(?:en|na)|červ(?:en|na|enec|ence)"
+          r"|srp(?:en|na)|září|říj(?:en|na)|listopad[u]?|prosin(?:ec|ce)",
+    "pl": r"stycz(?:eń|nia)|lut(?:y|ego)|mar(?:zec|ca)|kwie(?:cień|tnia)|maj[a]?|czerw(?:iec|ca)"
+          r"|lip(?:iec|ca)|sierp(?:ień|nia)|wrze(?:sień|śnia)|październik[a]?|listopad[a]?|grud(?:zień|nia)",
+}
+_DATE_MONTH_RE = {
+    code: re.compile(r"\.\s+(?:" + months + r")(?![^\W_])", re.IGNORECASE)
+    for code, months in _DATE_MONTHS.items()
+}
+# Space-grouped thousands ("1 234", "10 000", "1 234,5", "12 500 %") in the
+# locales that also group with a period. The run is kept as written, like
+# "1,000" in English; without this the percent and integer rules read the
+# trailing or leading group on its own. A leading minus ("-1 234 %") belongs
+# to the run; the lookbehind still rejects it after a word ("a-1 234").
+_SPACE_GROUP_RE = re.compile(
+    r"(?<![\w.,:/$%-])-?\d{1,3}(?: \d{3})+(?:,\d+)?(?:\s?%)?(?![\w:/%-])(?![.,]\d)"
+)
+
+
+def _grouped_spans(text: str, lang: str) -> list[tuple[int, int]]:
+    if lang not in _COMMA_DECIMAL_LANGS:
+        return []
+    return [g.span() for g in _SPACE_GROUP_RE.finditer(text)]
+
+
+def _in_span(m: re.Match, spans: list[tuple[int, int]]) -> bool:
+    return any(start <= m.start() < end for start, end in spans)
+
 _ORDINAL_SUFFIX = {1: "st", 2: "nd", 3: "rd"}
 
 
@@ -522,11 +591,18 @@ def _correct_ordinal_suffix(n: int) -> str:
     return _ORDINAL_SUFFIX.get(n % 10, "th")
 
 
-def _numbers_to_words(text: str, lang: str) -> str:
+def _numbers_to_words(text: str, lang: str, locale: Optional[str] = None) -> str:
+    """``lang`` keys the rule tables; ``locale`` (default ``lang``) is the
+    num2words locale, which differs for regional variants (``pt_BR``)."""
     try:
-        from num2words import num2words
+        from num2words import num2words as _num2words
     except ImportError:  # pragma: no cover — direct dependency; belt & braces
         return text
+    base, n2w_locale = lang, locale or lang
+
+    def num2words(value, lang: str, **kwargs):
+        # Every call below names its rule language; swap in the variant locale.
+        return _num2words(value, lang=n2w_locale if lang == base else lang, **kwargs)
 
     def _safe(m: re.Match, render: Callable[[re.Match], str], *, clock: bool = False) -> str:
         # Any num2words hiccup leaves this occurrence untouched.
@@ -559,17 +635,29 @@ def _numbers_to_words(text: str, lang: str) -> str:
 
         def _currency(m: re.Match) -> str:
             dollars = int(m.group(1))
-            if m.group(2) is not None:
-                amount = float(f"{m.group(1)}.{m.group(2)}")
-                return num2words(amount, lang="en", to="currency", currency="USD")
             unit = "dollar" if dollars == 1 else "dollars"
-            return f"{num2words(dollars, lang='en')} {unit}"
+            spoken = f"{num2words(dollars, lang='en')} {unit}"
+            if m.group(2) is None:
+                return spoken
+            cents = int(m.group(2))
+            # "$0.50" is "fifty cents" and "$5.00" is "five dollars": the
+            # zero part is not spoken ("zero dollars, fifty cents").
+            if cents == 0:
+                return spoken
+            if dollars == 0:
+                return f"{num2words(cents, lang='en')} {'cent' if cents == 1 else 'cents'}"
+            amount = float(f"{m.group(1)}.{m.group(2)}")
+            return num2words(amount, lang="en", to="currency", currency="USD")
 
         text = _CURRENCY_RE.sub(lambda m: _safe(m, _currency), text)
 
     percent_word = _PERCENT_WORD.get(lang)
     if percent_word:
+        grouped = _grouped_spans(text, lang)
+
         def _percent(m: re.Match) -> str:
+            if _in_span(m, grouped):
+                return m.group(0)
             raw = m.group(1)
             if "." in raw:
                 fraction = raw.split(".", 1)[1]
@@ -584,17 +672,40 @@ def _numbers_to_words(text: str, lang: str) -> str:
 
     if lang in _DECIMAL_LANGS:
         def _decimal(m: re.Match) -> str:
-            if _thousands_group(lang, m.group(2)):
+            whole, fraction = m.group(1), m.group(2)
+            if _thousands_group(lang, fraction):
                 return m.group(0)
-            return num2words(float(f"{m.group(1)}.{m.group(2)}"), lang=lang)
+            spoken = num2words(float(f"{whole}.{fraction}"), lang=lang)
+            # A float has no trailing zeros: "3.0" read as "three" and "2.50"
+            # as "two point five". Speak the zeros that were written.
+            # Unicode digits (fullwidth, Arabic-Indic) count as zeros too.
+            ascii_fraction = "".join(str(unicodedata.digit(c, 0)) for c in fraction)
+            zeros = len(ascii_fraction) - len(ascii_fraction.rstrip("0"))
+            if zeros:
+                from num2words import CONVERTER_CLASSES
+                point = getattr(CONVERTER_CLASSES.get(n2w_locale), "pointword", None)
+                if not isinstance(point, str):
+                    return spoken
+                zero = num2words(0, lang=lang)
+                if zeros == len(ascii_fraction):
+                    spoken = f"{num2words(int(whole), lang=lang)} {point}"
+                spoken += f" {zero}" * zeros
+            return spoken
 
         text = _DECIMAL_RE.sub(lambda m: _safe(m, _decimal), text)
+
+    month_re = _DATE_MONTH_RE.get(lang)
+    grouped = _grouped_spans(text, lang)
 
     def _integer(m: re.Match) -> str:
         raw = m.group(1)
         if _leading_zero(raw):
             return m.group(0)
+        if _in_span(m, grouped):
+            return m.group(0)
         n = int(raw)
+        if month_re and 1 <= n <= 31 and month_re.match(text, m.end()):
+            return m.group(0)
         if len(raw) == 4 and 1500 <= n <= 2099:
             # Bare 4-digit numbers in this range read as years
             # ("nineteen eighty-four"); fall back to cardinal where the
@@ -614,9 +725,14 @@ def _numbers_to_words(text: str, lang: str) -> str:
 # rendering is a hand-written module. Malayalam (ml) is the first: num2words
 # ships bn/kn/te but no ml, so Malayalam dubs reached the engine with raw
 # digits. Each module exposes ``cardinal(int)``, ``decimal(int, str)`` and
-# ``percent(str)``; any exception leaves that occurrence untouched.
+# ``percent(str)``; any exception leaves that occurrence untouched. Urdu (ur)
+# followed for the same reason: OmniVoice read "1956" as "انیس سو سپنس", while
+# the sentence spelled out in Urdu words came back with 0% CER.
 
-_NATIVE_VERBALIZERS = {"ml": "services.number_words_ml"}
+_NATIVE_VERBALIZERS = {
+    "ml": "services.number_words_ml",
+    "ur": "services.number_words_ur",
+}
 
 
 def _native_lang(language: Optional[str]) -> Optional[str]:
@@ -672,7 +788,8 @@ def normalize_text(text: str, language: Optional[str] = None) -> str:
     if lang:
         if lang in _ABBREV_COMPILED:
             out = _outside_brackets(out, lambda t: _expand_abbreviations(t, lang))
-        out = _outside_brackets(out, lambda t: _numbers_to_words(t, lang))
+        locale = _num2words_locale(language, lang)
+        out = _outside_brackets(out, lambda t: _numbers_to_words(t, lang, locale))
     else:
         native = _native_lang(language)
         if native:

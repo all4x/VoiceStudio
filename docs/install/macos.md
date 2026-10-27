@@ -44,8 +44,8 @@ double-click to mount it, and drag **VoiceStudio.app** into `/Applications`.
 
 | Mac | DMG to download |
 |-----|-----------------|
-| Apple Silicon (M1/M2/M3/M4…) | `VoiceStudio-Electron-<version>-mac-arm64.dmg` |
-| Intel | `VoiceStudio-Electron-<version>-mac-x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/VoiceStudio/issues/889)) |
+| Apple Silicon (M1–M5) | `VoiceStudio-<version>-mac-arm64.dmg` |
+| Intel | `VoiceStudio-<version>-mac-x64.dmg` — **UI only**: the local backend cannot run on Intel ([#889](https://github.com/debpalash/VoiceStudio/issues/889)) |
 
 The architectures are **not** interchangeable: an Intel Mac cannot run the
 `arm64` build (Rosetta 2 only translates the other direction). An Apple
@@ -89,6 +89,11 @@ one-time confirmation per install; afterwards it launches by double-click.
 > If you instead see the harsher **"app is damaged and can't be opened. Move to
 > Trash"** with no Open option, the download was corrupted or it's a pre-signing
 > build — re-download the latest release, or use the Terminal fallback below.
+
+> Builds after this fix are signed ad hoc by the release build (`identity: '-'`),
+> so they show the friendlier dialog above instead of "damaged". The shell
+> installer also clears quarantine and repairs the signature of older releases
+> for you.
 
 **Fix — Terminal:** after dragging the app into `/Applications`, run:
 
@@ -168,7 +173,7 @@ The default install works without a token, but diarization (the
 `pyannote/speaker-diarization-3.1` model) is gated and the larger
 voice-design engines also download faster with a token attached.
 
-- Open **Settings → API Keys** in the app.
+- Open **Settings → Credentials** in the app.
 - Or set the env var `export HF_TOKEN=hf_…` in `~/.zshrc`.
 
 Full details: [docs/setup/huggingface-token.md](../setup/huggingface-token.md).

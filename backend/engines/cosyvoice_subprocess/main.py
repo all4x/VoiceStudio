@@ -79,8 +79,11 @@ def _recv(stream):
 
 def _measure_vram_mb() -> float:
     try:
-        import torch  # noqa: PLC0415
-
+        # A ping must stay cheap: importing torch here can take a long time on a cold
+        # start (#2837). Until the model has loaded, nothing is allocated.
+        torch = sys.modules.get("torch")
+        if torch is None:
+            return 0.0
         if torch.cuda.is_available():
             return float(torch.cuda.memory_allocated()) / (1024 * 1024)
     except Exception:  # noqa: BLE001 — a probe, never fatal
@@ -319,6 +322,10 @@ def _handle_synthesize(msg: dict, stdout) -> None:
             "ref_audio must be a local file path; URLs are not accepted (local-first)."
         )
     model = _load_model(stdout)
+    if msg.get("seed") is not None:
+        import torch  # noqa: PLC0415
+
+        torch.manual_seed(int(msg["seed"]))
     chunks = list(_run_model(model, msg))
     sample_rate = int(getattr(model, "sample_rate", COSYVOICE_SAMPLE_RATE) or COSYVOICE_SAMPLE_RATE)
     pcm_b64, n_samples = _mono_pcm_b64(chunks, sample_rate)

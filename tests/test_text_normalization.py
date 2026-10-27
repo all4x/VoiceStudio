@@ -40,6 +40,12 @@ _CHANGE_CASES = [
     ("English", "It costs $5", "It costs five dollars"),
     ("English", "Just $1 more", "Just one dollar more"),
     ("English", "It costs $5.99 now", "It costs five dollars, ninety-nine cents now"),
+    # a zero part is not spoken
+    ("English", "only $0.50 now", "only fifty cents now"),
+    ("English", "just $0.01 more", "just one cent more"),
+    ("English", "it costs $5.00 now", "it costs five dollars now"),
+    ("English", "only $1.00.", "only one dollar."),
+    ("English", "it was $0.00 then", "it was zero dollars then"),
     # Sentence punctuation after an amount is not part of it: the lookahead
     # used to reject any period or comma, so these reached the engine as digits.
     ("English", "It costs $5.", "It costs five dollars."),
@@ -48,6 +54,12 @@ _CHANGE_CASES = [
     ("English", "$12.34, $56.78, and $9.",
      "twelve dollars, thirty-four cents, fifty-six dollars, seventy-eight cents, and nine dollars."),
     ("English", "rated 3.5 stars", "rated three point five stars"),
+    # The written trailing zeros are spoken, not dropped by the float.
+    ("English", "version 3.0 ships", "version three point zero ships"),
+    ("English", "it weighs 2.50 kg", "it weighs two point five zero kg"),
+    ("German", "Version 3.0 kommt", "Version drei Komma null kommt"),
+    ("English", "version \uff13.\uff10 ships", "version three point zero ships"),
+    ("Portuguese", "valor 3.0", "valor três vírgula zero"),
     # English writes decimals with a period, so three digits after it are a
     # decimal here (the same digits are a thousands group in German, below).
     ("English", "pi is 3.141 here", "pi is three point one four one here"),
@@ -62,6 +74,10 @@ _CHANGE_CASES = [
     ("English", "fruit, e.g. apples", "fruit, for example apples"),
     ("English", "good vs. evil", "good versus evil"),
     ("English", "exhibit No. 5", "exhibit number five"),
+    # a number glued to the abbreviation is still spoken as one
+    ("English", "exhibit No.5", "exhibit number five"),
+    ("German", "Nr.5 gewinnt", "Nummer fünf gewinnt"),
+    ("French", "le n°5 gagne", "le numéro cinq gagne"),
     # ISO-ish codes resolve like display names
     ("en", "I have 2 cats", "I have two cats"),
     ("en-US", "I have 2 cats", "I have two cats"),
@@ -71,10 +87,27 @@ _CHANGE_CASES = [
     ("German", "Nr. 5 gewinnt", "Nummer fünf gewinnt"),
     ("German", "etwa 50%", "etwa fünfzig Prozent"),
     ("German", "etwa 3.5 Kilo", "etwa drei Komma fünf Kilo"),
+    # The day of a date keeps its digits; the year still speaks. A number
+    # that ends a sentence before any other word still speaks.
+    ("German", "Am 3. Mai 2024", "Am 3. Mai zweitausendvierundzwanzig"),
+    ("German", "Ich habe 3. Dann 4.", "Ich habe drei. Dann vier."),
+    ("German", "Kapitel 3. Der Anfang.", "Kapitel drei. Der Anfang."),
+    # A month name glued to a digit is not a month token.
+    ("German", "Am 3. Mai2 war es", "Am drei. Mai2 war es"),
     ("Spanish", "tengo 42 gatos", "tengo cuarenta y dos gatos"),
     ("Spanish", "el Sr. García", "el Señor García"),
     ("French", "il a 42 chats", "il a quarante-deux chats"),
     ("French", "Mme Dupont arrive", "Madame Dupont arrive"),
+    # Numbers around a space-grouped amount still speak; the group itself
+    # keeps its digits.
+    ("French", "2 colis de 1 234 pièces", "deux colis de 1 234 pièces"),
+    # A year is not a leading group: four digits never start one.
+    ("French", "en 2024 500 personnes", "en deux mille vingt-quatre cinq cents personnes"),
+    # Narrow and no-break spaces (what French keyboards and word processors
+    # insert) collapse to a plain space, and the group stays whole.
+    ("French", "soit 1\u202f234\u00a0567 euros", "soit 1 234 567 euros"),
+    # English keeps reading separate numbers: "2 100" is not a group there.
+    ("English", "room 2 100 meters away", "room two one hundred meters away"),
     ("Russian", "у меня 42 кота", "у меня сорок два кота"),
     # Malayalam goes through the native verbalizer (num2words has no ml
     # locale): cardinals with sandhi, years as plain cardinals, Indian
@@ -93,6 +126,24 @@ _CHANGE_CASES = [
     ("Malayalam", "[pause 300ms] 42 [voice:Anu]", "[pause 300ms] നാൽപത്തിരണ്ട് [voice:Anu]"),
     # Native Malayalam digits are digits too.
     ("Malayalam", "൪൨ പേർ", "നാൽപത്തിരണ്ട് പേർ"),
+    # Urdu goes through the native verbalizer too (num2words has no ur
+    # locale): an irregular 0-99 table, سو / ہزار / لاکھ, and 1100-1999 read in
+    # hundreds the way Urdu speakers say years ("انیس سو چھپن", not the
+    # "انیس سو سپنس" OmniVoice produced from raw digits).
+    ("Urdu", "سن 1956 میں 10 لوگ", "سن انیس سو چھپن میں دس لوگ"),
+    ("Urdu", "عمر 55 سال", "عمر پچپن سال"),
+    ("Urdu", "قیمت 150 روپے", "قیمت ایک سو پچاس روپے"),
+    ("Urdu", "سال 2026 میں", "سال دو ہزار چھبیس میں"),
+    ("Urdu", "سال 2000 تک", "سال دو ہزار تک"),
+    ("Urdu", "1000 لوگ", "ایک ہزار لوگ"),
+    ("Urdu", "150000 روپے", "ایک لاکھ پچاس ہزار روپے"),
+    ("Urdu", "تقریباً 50%", "تقریباً پچاس فیصد"),
+    ("Urdu", "3.5 کلومیٹر", "تین اعشاریہ پانچ کلومیٹر"),
+    ("ur", "عمر 55 سال", "عمر پچپن سال"),
+    ("ur-PK", "عمر 55 سال", "عمر پچپن سال"),
+    ("Urdu", "[pause 300ms] 42 [voice:Ali]", "[pause 300ms] بیالیس [voice:Ali]"),
+    # Urdu (Extended Arabic-Indic) digits are digits too.
+    ("Urdu", "سن ۱۹۵۶ میں", "سن انیس سو چھپن میں"),
     # Digit ranges: the tilde has to be SPOKEN or the engine mashes the two
     # numbers into one ("20~30초" was read as "이십삼"). Spacing is part of the
     # per-language form — a Korean postposition binds to its numeral, Japanese
@@ -176,6 +227,33 @@ _UNCHANGED_CASES = [
     ("German", "etwa 12.500%"),                  # the percent rule shares it
     ("Spanish", "más de 1.000 personas"),
     ("French", "plus de 1.000 personnes"),
+    # "3. Mai" is an ordinal date where a period marks ordinals; its spoken
+    # form inflects ("am dritten", "der dritte"), so the day stays as
+    # written for the engine. The integer rule used to speak the cardinal
+    # and leave the period behind as a sentence break ("drei. Mai").
+    ("German", "Am 3. Mai"),
+    ("German", "Der 1. Januar ist frei."),
+    ("German", "am 21. dezember"),
+    ("German", "Am 3. Mrz. und am 5. Jun."),      # abbreviated months
+    ("German", "Am 3. Mär. geschlossen"),
+    ("German", "bis 1. Jul. offen"),
+    ("Danish", "Den 3. maj"),
+    ("Norwegian", "Den 17. mai"),
+    ("Finnish", "3. toukokuuta"),
+    ("Czech", "3. května"),
+    ("Polish", "3. maja"),
+    # A space between a 1-3 digit group and 3-digit groups is the other
+    # thousands separator in those locales ("1 234", "10 000"): kept whole,
+    # digits and all. The integer rule used to read the leading group on
+    # its own ("un 234,5", "dix 000 habitants").
+    ("French", "Il a 1 234,5 euros."),
+    ("French", "Population : 10 000 habitants."),
+    ("German", "Das sind 1 234 Euro."),
+    ("Russian", "Это 1 234 рубля."),
+    ("French", "soit 12 500% du total"),         # the percent rule shares it
+    ("French", "soit 1 234 % du total"),
+    ("French", "une baisse de -1 234% du total"),  # a sign stays on the run
+    ("French", "soit -12 500 euros"),
     # Malayalam native path keeps the same conservative boundaries
     ("Malayalam", "1,000 രൂപ"),                  # thousands separator
     ("Malayalam", "പേജ് 3-5 വായിക്കുക"),           # range
@@ -188,6 +266,13 @@ _UNCHANGED_CASES = [
     ("Malayalam", "ക്ലാസ്10 ജയിച്ചു"),
     ("Malayalam", "കോടി150"),
     ("Malayalam", "കോഡ് ൦൦൭"),                    # native leading-zero code
+    # Urdu native path keeps the same conservative boundaries
+    ("Urdu", "1,000 روپے"),                       # thousands separator
+    ("Urdu", "صفحہ 3-5 پڑھیں"),                   # range
+    ("Urdu", "کوڈ 007"),                          # leading-zero code
+    ("Urdu", "کوڈ ۰۰۷"),                          # native leading-zero code
+    ("Urdu", "1234567 نمبر"),                     # 7+ digits: an ID
+    ("Urdu", "ورژن 3.5.1"),                       # version string
     ("ar", "الرمز ٠٠٧"),                         # same class on the num2words path
     # Digit ranges: only the tilde family is a range mark. Everything else that
     # sits between digits means something other than "to".
@@ -280,6 +365,58 @@ def test_native_language_is_outside_num2words_gate():
     assert _native_lang("Malayalam") == "ml"
     assert _native_lang("ml-IN") == "ml"
     assert _native_lang("English") is None
+
+
+def test_urdu_verbalizer_covers_full_integer_range():
+    """Every ≤ 6-digit integer renders in Urdu letters only: no digits, and
+    none of the Arabic look-alikes (ي ك ه ى) that TTS frontends treat as a
+    different language."""
+    from services import number_words_ur as ur
+    arabic_lookalikes = set("\u064a\u0643\u0647\u0649")
+    for n in range(1_000_000):
+        word = ur.cardinal(n)
+        assert word and not any(ch.isdigit() for ch in word), n
+        assert not arabic_lookalikes & set(word), n
+
+
+@pytest.mark.parametrize("n,expected", [
+    (0, "صفر"), (19, "انیس"), (29, "انتیس"), (49, "انچاس"), (55, "پچپن"),
+    (56, "چھپن"), (59, "انسٹھ"), (69, "انہتر"), (79, "اناسی"), (89, "نواسی"),
+    (99, "ننانوے"), (100, "ایک سو"), (999, "نو سو ننانوے"),
+    (1001, "ایک ہزار ایک"), (1099, "ایک ہزار ننانوے"),
+    (1100, "گیارہ سو"), (1947, "انیس سو سینتالیس"), (1999, "انیس سو ننانوے"),
+    (2001, "دو ہزار ایک"), (10_500, "دس ہزار پانچ سو"),
+    (100_000, "ایک لاکھ"), (101_956, "ایک لاکھ ایک ہزار نو سو چھپن"),
+    (999_999, "نو لاکھ ننانوے ہزار نو سو ننانوے"),
+])
+def test_urdu_cardinal_spot_checks(n, expected):
+    from services import number_words_ur as ur
+    assert ur.cardinal(n) == expected
+
+
+def test_urdu_decimal_and_percent():
+    from services import number_words_ur as ur
+    assert ur.decimal(0, "05") == "صفر اعشاریہ صفر پانچ"
+    assert ur.percent("2.5") == "دو اعشاریہ پانچ فیصد"
+    assert ur.percent("100") == "ایک سو فیصد"
+
+
+def test_urdu_language_is_outside_num2words_gate():
+    """ur resolves to the native path, never to num2words (no ur locale)."""
+    from services.text_normalization import _native_lang, _num2words_lang
+    assert _num2words_lang("Urdu") is None
+    assert _num2words_lang("ur") is None
+    assert _native_lang("Urdu") == "ur"
+    assert _native_lang("ur-PK") == "ur"
+
+
+def test_urdu_normalize_for_tts_leaves_no_digits():
+    # Resolved at run time: other suites purge and reload services.* modules.
+    from services.text_normalization import normalize_for_tts
+
+    out = normalize_for_tts("سن 1956 میں 10 لوگ", "ur")
+    assert out == "سن انیس سو چھپن میں دس لوگ"
+    assert not any(ch.isdigit() for ch in out)
 
 
 # ── Idempotency: f(f(x)) == f(x) for every table case ───────────────────────

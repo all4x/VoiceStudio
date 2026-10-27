@@ -47,10 +47,30 @@ it('does not carry a forced expansion to another workspace', () => {
   rerender();
   expect(result.current.compact).toBe(true);
 });
-it('keeps the clone workspace toggle in sync with explicit collapse', () => {
+it('uses the icon rail beside a section pane, including the Clone and Home library', () => {
+  state.narrow = false;
+  for (const path of ['/clone', '/', '/design']) {
+    state.path = path;
+    const { result } = renderHook(useWorkspaceSidebarState);
+    expect(result.current.compact, path).toBe(true);
+  }
+  state.layout.autoCollapseSidebar = false;
   state.path = '/clone';
+  expect(renderHook(useWorkspaceSidebarState).result.current.compact).toBe(false);
+});
+it('keeps one navigation layout on Integrations, Pro and integration details', () => {
+  state.narrow = false;
+  for (const path of ['/integrations', '/integrations/n8n', '/pro', '/workflows', '/clone']) {
+    state.path = path;
+    expect(renderHook(useWorkspaceSidebarState).result.current.compact, path).toBe(true);
+  }
+});
+it('syncs an explicit collapse after the user expands the rail', () => {
+  state.path = '/integrations';
   state.narrow = false;
   const { result, rerender } = renderHook(useWorkspaceSidebarState);
+  act(() => result.current.setOpen(true));
+  rerender();
   expect(result.current.compact).toBe(false);
   act(() => result.current.setOpen(false));
   rerender();
@@ -64,10 +84,10 @@ it('keeps the full sidebar on a secondary workspace when auto-collapse is off', 
   state.path = '/projects';
   rerender();
   expect(result.current.compact).toBe(false);
-  // A workspace that shows the voice library itself still collapses the duplicate.
+  // The library no longer lives in the navigation column, so there is no duplicate to hide.
   state.path = '/personas';
   rerender();
-  expect(result.current.compact).toBe(true);
+  expect(result.current.compact).toBe(false);
   // The explicit close still works.
   state.path = '/tools';
   act(() => result.current.setOpen(false));

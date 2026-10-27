@@ -1,6 +1,7 @@
 import { Store } from '@tanstack/store';
 import { useStore } from '@tanstack/react-store';
 import { debounce } from '@tanstack/react-pacer';
+import { onStorageKey } from '@/lib/storage-events';
 
 export const CLONE_SETTINGS_STORAGE_KEY = 'voicestudio.clone.settings.v1';
 const PERSIST_DEBOUNCE_MS = 250;
@@ -11,9 +12,18 @@ export interface CloneSettings {
   language: string;
   refText: string;
   instruct: string;
+  /** Optional IndexTTS2 emotion direction, separate from voice identity. */
+  emotionMode: 'none' | 'text' | 'vector';
+  emotionText: string;
+  /** Recommended 0..0.6 strength for IndexTTS2 text emotion. */
+  emotionAlpha: number;
+  /** Eight weights: happy, angry, sad, afraid, disgusted, melancholic, surprised, calm. */
+  emotionVector: number[];
   steps: number;
   wavBits: 16 | 24 | 32;
   effectPreset: 'broadcast' | 'raw';
+  /** Built-in voice id for preset engines; '' = the engine's default. */
+  presetVoice: string;
   cfg: number;
   speed: number;
   tShift: number;
@@ -34,9 +44,14 @@ export const DEFAULT_CLONE_SETTINGS: CloneSettings = {
   language: 'Auto',
   refText: '',
   instruct: '',
+  emotionMode: 'none',
+  emotionText: '',
+  emotionAlpha: 0.6,
+  emotionVector: [0, 0, 0, 0, 0, 0, 0, 0],
   steps: 16, // ~16 avoids ODE destabilisation in the flow-matcher.
   wavBits: 16,
   effectPreset: 'broadcast',
+  presetVoice: '',
   cfg: 2.0,
   speed: 1.0,
   tShift: 0.1,
@@ -53,6 +68,16 @@ export const DEFAULT_CLONE_SETTINGS: CloneSettings = {
 
 /** Whether `value` is a valid stored value for the clone setting `key`. */
 export function acceptsCloneSetting(key: keyof CloneSettings, value: unknown): boolean {
+  if (key === 'emotionMode') return value === 'none' || value === 'text' || value === 'vector';
+  if (key === 'emotionText') return typeof value === 'string' && value.length <= 500;
+  if (key === 'emotionVector')
+    return (
+      Array.isArray(value) &&
+      value.length === 8 &&
+      value.every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1)
+    );
+  if (key === 'emotionAlpha')
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 0.6;
   if (key === 'wavBits') return value === 16 || value === 24 || value === 32;
   if (key === 'effectPreset') return value === 'broadcast' || value === 'raw';
   if (key === 'selectedProfileId') return value === null || typeof value === 'string';
@@ -113,6 +138,13 @@ export const cloneSettingsStore = new Store<CloneSettings>(
 
 const persist = debounce(writeStorage, { wait: PERSIST_DEBOUNCE_MS });
 cloneSettingsStore.subscribe((settings) => persist(settings));
+// A value pulled by Cloud sync (or written by another window) replaces the in-memory copy,
+// so the next save never writes the old defaults back.
+onStorageKey(CLONE_SETTINGS_STORAGE_KEY, () => {
+  const next = parsePersistedCloneSettings(readStorage());
+  if (JSON.stringify(next) !== JSON.stringify(cloneSettingsStore.state))
+    cloneSettingsStore.setState(() => next);
+});
 
 export function useCloneSettings(): CloneSettings {
   return useStore(cloneSettingsStore);
@@ -141,8 +173,21 @@ export function resetAudioQuality(): void {
 
 /** Restore voice controls without changing next-take quality or the draft. */
 export function resetVoiceControls(): void {
-  const { cfg, speed, tShift, posTemp, classTemp, layerPenalty, denoise, postprocess, duration } =
-    DEFAULT_CLONE_SETTINGS;
+  const {
+    cfg,
+    speed,
+    tShift,
+    posTemp,
+    classTemp,
+    layerPenalty,
+    denoise,
+    postprocess,
+    duration,
+    emotionMode,
+    emotionText,
+    emotionAlpha,
+    emotionVector,
+  } = DEFAULT_CLONE_SETTINGS;
   patchCloneSettings({
     cfg,
     speed,
@@ -153,6 +198,10 @@ export function resetVoiceControls(): void {
     denoise,
     postprocess,
     duration,
+    emotionMode,
+    emotionText,
+    emotionAlpha,
+    emotionVector: [...emotionVector],
   });
 }
 
@@ -173,5 +222,9 @@ export function resetOverrides(): void {
     denoise,
     postprocess,
     duration: DEFAULT_CLONE_SETTINGS.duration,
+    emotionMode: DEFAULT_CLONE_SETTINGS.emotionMode,
+    emotionText: DEFAULT_CLONE_SETTINGS.emotionText,
+    emotionAlpha: DEFAULT_CLONE_SETTINGS.emotionAlpha,
+    emotionVector: [...DEFAULT_CLONE_SETTINGS.emotionVector],
   });
 }

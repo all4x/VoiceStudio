@@ -74,15 +74,14 @@ const electronPackage = JSON.parse(readFileSync(resolve(root, 'package.json'), '
 assert.match(electronPackage.author?.email ?? '', /@/, 'Linux package declares a maintainer email');
 assert.equal(config.productName, PRODUCT_NAME, 'Builder uses the central product name');
 assert.equal(config.appId, APP_ID, 'Builder uses the central application ID');
+const storeLabel = {
+  'microsoft-store': 'MicrosoftStore-',
+  'mac-app-store': 'MacAppStore-',
+}[DISTRIBUTION_TARGET];
 assert.equal(
   config.artifactName,
-  `${PRODUCT_NAME}-${
-    {
-      'microsoft-store': 'MicrosoftStore',
-      'mac-app-store': 'MacAppStore',
-    }[DISTRIBUTION_TARGET] ?? 'Electron'
-  }-\${version}-\${os}-\${arch}.\${ext}`,
-  'Store packaging is distinct without renaming direct-download artifacts',
+  `${PRODUCT_NAME}-${storeLabel ?? ''}\${version}-\${os}-\${arch}.\${ext}`,
+  'Direct downloads are VoiceStudio-<version>-<os>-<arch>; store packages stay labelled',
 );
 assert.equal(
   config.extraMetadata.voicestudioDistribution,
@@ -122,6 +121,14 @@ for (const entitlementFile of [config.mac.entitlements, config.mac.entitlementsI
   const entitlements = readFileSync(resolve(root, entitlementFile), 'utf8');
   assert.match(entitlements, /<key>com\.apple\.security\.device\.audio-input<\/key>\s*<true\s*\/>/);
   assert.match(entitlements, /<key>com\.apple\.security\.cs\.allow-jit<\/key>\s*<true\s*\/>/);
+}
+if (DISTRIBUTION_TARGET !== 'mac-app-store') {
+  assert.equal(
+    config.mac.identity,
+    process.env.CSC_LINK ? undefined : '-',
+    'Unsigned macOS builds are signed ad hoc so the bundle signature stays valid',
+  );
+  if (config.mac.identity === '-') assert.equal(config.mac.hardenedRuntime, false);
 }
 if (DISTRIBUTION_TARGET === 'mac-app-store') {
   assert.deepEqual(config.mac.target, ['mas'], 'Mac App Store builds only the MAS package');

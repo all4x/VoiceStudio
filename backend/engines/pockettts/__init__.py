@@ -71,6 +71,9 @@ class PocketTTSBackend(SubprocessBackend):
     # ships no CUDA/MPS path and reports no GPU speedup for this model.
     gpu_compat: tuple[str, ...] = ("cpu",)
     supports_cloning = True  # zero-shot clone from a reference clip
+    # No instruct input: without a clip it speaks a preset voice, so a Voice
+    # Design take would ignore every detail and the seed (#3413).
+    supports_voice_design = False
 
     @classmethod
     def _platform_error(cls) -> str | None:
@@ -152,6 +155,12 @@ class PocketTTSBackend(SubprocessBackend):
                 "license, and gated-access conditions before enabling it."
             )
         return True, "ready (CPU-only)"
+
+    @classmethod
+    def shares_parent_torch(cls) -> bool:
+        # The same check venv_python() makes: no venv of its own means the
+        # parent interpreter runs it.
+        return _own_venv_python() is None
 
     @classmethod
     def venv_python(cls) -> Path:

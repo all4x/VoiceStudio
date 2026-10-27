@@ -1,7 +1,7 @@
 # Shell installer (Electron)
 
 The shell installer supports macOS (Apple Silicon and Intel) and Linux x64.
-On Windows, download the `VoiceStudio-Electron-…-win-x64.exe` installer (or
+On Windows, download the `VoiceStudio-…-win-x64.exe` installer (or
 `…-win-arm64.exe` on a Snapdragon/ARM PC) from
 [Releases](https://github.com/debpalash/VoiceStudio/releases).
 
@@ -31,11 +31,20 @@ curl -fsSL https://voicestudio.sh/install | sh -s -- --main
 ```
 
 `--source` is an alias for `--main`. It cannot be combined with `--version`.
+Release packages are named `VoiceStudio-<version>-<os>-<arch>`; the installers
+still find the `VoiceStudio-Electron-*` names that releases up to v0.5.7-beta.3 used.
 After downloading the script for inspection, the equivalent local commands are
 `sh scripts/install.sh`, `sh scripts/install.sh --version X.Y.Z`, and
 `sh scripts/install.sh --main`.
 
 ## Release installation
+
+If `voicestudio.sh/install` is unreachable or returns 404, run the same script
+straight from the repository, or clone it and run `scripts/install.sh`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/debpalash/VoiceStudio/main/scripts/install.sh | sh
+```
 
 Requires curl and `shasum` (included on macOS) or `sha256sum`. The installer
 resolves the latest GitHub release tag, downloads the Electron DMG or AppImage,
@@ -50,6 +59,11 @@ and checks again before replacing files. macOS refreshes the installed app's
 Launch Services registration so Launchpad can find the new version.
 macOS installs `VoiceStudio.app` in
 `/Applications`, or `~/Applications` if `/Applications` is not writable.
+On macOS the installer also clears the `com.apple.quarantine` flag and, when
+`codesign --verify --deep --strict` fails (releases shipped before the build
+signed ad hoc, #2763), re-signs the bundle ad hoc so Gatekeeper does not report
+"damaged". A valid or notarized signature is never touched. On an Intel Mac it
+prints that the local backend needs Apple Silicon.
 Linux installs `~/.local/bin/VoiceStudio`; include `~/.local/bin` in your PATH.
 Current Electron source builds also read archived setup configuration for custom
 data/model folders and portable storage; explicit launch environment overrides

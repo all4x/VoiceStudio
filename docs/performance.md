@@ -402,9 +402,30 @@ so a slow client cannot inflate it. The backend log records the same values, so 
 - **Killing the backend between generations** makes everything slower — you
   pay the model load every time. The idle timeout already frees memory when
   it's genuinely idle.
+- **Reloading speech-to-text per request** isn't needed either: accurate
+  dictation, voice-clone reference transcripts, `/v1/audio/transcriptions` and
+  voice conversion share one loaded model between requests. It is released
+  after the idle timeout, before a TTS model loads or generates, or from the
+  loaded-models **Unload** control (listed as *transcription*).
 - **`OMNIVOICE_PRELOAD_TTS_ASR`** exists for a legacy in-process Whisper
   fallback; enabling it costs memory on every start and speeds up nothing on
   a default install.
+
+## Long books
+
+The Audiobook and Stories tracker shows the realtime factor as the render
+runs. Below 1× the book renders slower than it plays: a 3 h 40 min book at
+0.5× needs about 7 h 20 min. The time left follows the measured rate, so it
+settles after the first few chunks. To go faster, pick **Fast** or **Balanced**
+under Speed / quality (fewer OmniVoice sampling steps), or preview one chapter
+first to compare engines. A tracker that reports a stall has finished no chunk
+for several typical chunk times; check Logs → Backend, then Stop and create
+again — finished chapters and lines are cached and are not re-rendered.
+
+Every chapter reuses the warm engine. Earlier builds created a fresh engine for
+each chapter, which for a sidecar engine (OmniVoice on Apple Silicon included)
+meant a new process and a full model load per chapter, with the previous
+process left resident until the app quit (#3417).
 
 ## Local render diagnostics
 

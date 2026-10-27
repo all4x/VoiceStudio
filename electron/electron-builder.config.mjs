@@ -17,19 +17,25 @@ const { version } = JSON.parse(readFileSync(resolve(here, '../package.json'), 'u
 const storeMetadata = JSON.parse(readFileSync(resolve(here, '../store/metadata.json'), 'utf-8'));
 const storeIdentity = storeMetadata.identity;
 const isMacAppStore = DISTRIBUTION_TARGET === 'mac-app-store';
-const artifactLabel =
-  {
-    'microsoft-store': 'MicrosoftStore',
-    'mac-app-store': 'MacAppStore',
-  }[DISTRIBUTION_TARGET] ?? 'Electron';
-const artifactPrefix = `${PRODUCT_NAME.replace(/[^A-Za-z0-9]+/g, '-')}-${artifactLabel}`;
-// Stable is the only Electron update feed: there is no `preview` release to
-// point at. Packaging rehearsals from main are stamped stable too; they are
-// review artifacts and are never published.
+// Direct downloads are `VoiceStudio-<version>-<os>-<arch>.<ext>`; store builds
+// keep a label so they never collide with them. Releases up to v0.5.7-beta.3
+// used `VoiceStudio-Electron-*`; the installers still resolve those names.
+const artifactLabel = {
+  'microsoft-store': 'MicrosoftStore',
+  'mac-app-store': 'MacAppStore',
+}[DISTRIBUTION_TARGET];
+const artifactPrefix = [PRODUCT_NAME.replace(/[^A-Za-z0-9]+/g, '-'), artifactLabel]
+  .filter(Boolean)
+  .join('-');
+// Stable and Beta are the Electron update feeds (Beta = `-beta.N` prereleases,
+// stamped by electron-release.yml). Packaging rehearsals from main are stamped
+// stable; they are review artifacts and are never published.
 const updateChannel =
   process.env.VOICESTUDIO_UPDATE_CHANNEL || `electron-stable-${process.platform}-${process.arch}`;
 if (
-  !/^electron-(?:microsoft-store-)?stable-(?:win32|darwin|linux)-(?:x64|arm64)$/.test(updateChannel)
+  !/^electron-(?:(?:microsoft-store-)?stable|beta)-(?:win32|darwin|linux)-(?:x64|arm64)$/.test(
+    updateChannel,
+  )
 ) {
   throw new Error(`Unsupported Electron update channel: ${updateChannel}`);
 }
@@ -115,6 +121,12 @@ const notarizeMac =
     process.env.APPLE_TEAM_ID,
   );
 
+// electron-builder never signs ad hoc on its own when no certificate exists, so
+// the bundle keeps Electron's original signature while its contents change. That
+// signature is invalid, and quarantined downloads then fail as "damaged"
+// (#2763, #2829, #2681). Sign ad hoc explicitly when no Developer ID is supplied.
+const adhocSignMac = !isMacAppStore && !process.env.CSC_LINK;
+
 /** @type {import('electron-builder').Configuration} */
 export default {
   appId: APP_ID,
@@ -162,6 +174,8 @@ export default {
     },
     { from: '../pyproject.toml', to: 'pyproject.toml' },
     { from: '../uv.lock', to: 'uv.lock' },
+    { from: '../scripts/windows-rocm-recipe.json', to: 'scripts/windows-rocm-recipe.json' },
+    { from: '../scripts/smoke_windows_rocm.py', to: 'scripts/smoke_windows_rocm.py' },
     { from: '../README.md', to: 'README.md' },
     { from: '../LICENSE', to: 'LICENSE' },
     { from: '../LICENSE-NOTICE.md', to: 'LICENSE-NOTICE.md' },
@@ -194,6 +208,7 @@ export default {
     // Keep unsigned artifact rehearsals at their existing signing defaults;
     // a Developer ID certificate and Apple credentials enable both together.
     hardenedRuntime: isMacAppStore ? false : notarizeMac,
+    ...(adhocSignMac ? { identity: '-' } : {}),
     notarize: notarizeMac,
     extendInfo: {
       NSMicrophoneUsageDescription: readFileSync(resolve(here, 'build/Info.plist'), 'utf8')

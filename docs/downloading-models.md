@@ -140,10 +140,17 @@ failed download at once. Caveats:
 
 ## Cancelling a download
 
-the engine's **Weights** list in **Model Catalogue** lets you cancel an in-flight install. Cancellation stops
-further retries and clears the failure cooldown so you can restart
-immediately. A file that's already streaming finishes first — cancellation
-takes effect at the next retry boundary.
+The engine's **Weights** list in **Model Catalogue** lets you cancel an
+in-flight install. The transfer stops at its next chunk (or before it starts,
+if you cancel while it is still resolving; with the opt-in Xet transfer a file
+already in progress may finish first), and the row shows *cancelling*
+until cleanup finishes. Cleanup removes what that download wrote: partial
+`*.incomplete` / `*.part` files, files it finished, and new snapshot entries.
+Files that were already in the cache before you started (an earlier revision
+or another model's files) are kept, so the model returns to its previous state.
+On Windows, a file still held open is retried for a few seconds before it is
+left in place. Cancelling also clears the failure cooldown, so you can start
+the download again immediately.
 
 ## Troubleshooting
 
@@ -157,5 +164,5 @@ takes effect at the next retry boundary.
   the engine's **Weights** list in **Model Catalogue** and install it again.
 - **Out of disk** — model sizes are shown in the catalog; free space or change
   the cache location with `HF_HOME` / `HF_HUB_CACHE`. An install also keeps
-  10 GB free on the model disk after the download, so it needs the download
-  size plus 10 GB; the warning in Model Catalogue shows both numbers.
+  2 GB free on the model disk after the download, so it needs the download
+  size plus 2 GB; the warning in Model Catalogue shows both numbers.
