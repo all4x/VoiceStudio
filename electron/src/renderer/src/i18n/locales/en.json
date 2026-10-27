@@ -1846,7 +1846,13 @@
     "exportFailed": "Export failed — check the backend is running.",
     "deleteProjectConfirm": "Delete this project permanently?",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "exportStory": "Export story",
+    "exportStoryHint": "Save the story with cast, voices, speeds and tags as a .txt you can edit or re-import",
+    "replaceStory": "Replace story",
+    "replaceStoryConfirm": "Replace the current {{count}} lines with the imported story? This cannot be undone.",
+    "storyImported": "Imported {{lines}} lines from the story file",
+    "storyImportedUnknown": "Imported {{lines}} lines — no installed voice matches: {{voices}}"
   },
   "audiobook": {
     "cast": "Cast",

@@ -1,4 +1,4 @@
-import { isChapterLine, chapterTitle } from './storyExport';
+import { splitChapterTrack } from './storyExport';
 import { effectiveProfile } from './storyCast';
 import { parseChapterBody } from './longformParser';
 
@@ -35,12 +35,13 @@ export function storyToSpans(tracks, cast, globalSpeed = null) {
   const gspeed = globalSpeed && globalSpeed !== 1 ? globalSpeed : null;
 
   for (const tk of tracks || []) {
-    const text = tk.text || '';
-    if (isChapterLine(text)) {
+    const chapter = splitChapterTrack(tk.text);
+    if (chapter) {
       flush();
-      cur = { title: chapterTitle(text), spans: [] };
-      continue;
+      cur = { title: chapter.title, spans: [] };
     }
+    const text = chapter ? chapter.body : tk.text || '';
+    if (!text) continue;
     const voiceId = effectiveProfile(tk, cast) || null;
     // Per-track speed wins; otherwise the global speed; else engine default.
     // (falsy 0 → fall through to global/null, per the #27 zero-is-default rule.)

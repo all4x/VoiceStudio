@@ -1738,7 +1738,13 @@
     "global_speed_apply": "모든 줄에 적용",
     "deleteProjectConfirm": "이 프로젝트를 영구적으로 삭제할까요?",
     "moveUp": "위로 이동",
-    "moveDown": "아래로 이동"
+    "moveDown": "아래로 이동",
+    "exportStory": "스토리 내보내기",
+    "exportStoryHint": "캐스트, 음성, 속도, 태그를 포함해 스토리를 편집하거나 다시 가져올 수 있는 .txt로 저장합니다",
+    "replaceStory": "스토리 바꾸기",
+    "replaceStoryConfirm": "현재 {{count}}개 줄을 가져온 스토리로 바꿀까요? 되돌릴 수 없습니다.",
+    "storyImported": "스토리 파일에서 {{lines}}개 줄을 가져왔습니다",
+    "storyImportedUnknown": "{{lines}}개 줄을 가져왔습니다 — 일치하는 설치된 음성이 없습니다: {{voices}}"
   },
   "audiobook": {
     "cast": "캐스트",

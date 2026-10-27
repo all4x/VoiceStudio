@@ -6,6 +6,20 @@ import { getBridge } from './bridge';
 import { Button } from './ui/button';
 import { saveExport } from '@/lib/export-history';
 
+/** Plain-browser fallback (no Electron bridge): fetch the file and trigger a download. */
+async function downloadInBrowser(url: string, filename: string): Promise<void> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export function SaveAudioButton({
   url,
   suggestedName,
@@ -20,9 +34,13 @@ export function SaveAudioButton({
   const bridge = getBridge();
 
   const save = async () => {
-    if (!url || !bridge) return;
+    if (!url) return;
     setSaving(true);
     try {
+      if (!bridge) {
+        await downloadInBrowser(url, suggestedName);
+        return;
+      }
       const saved = await saveExport(url, suggestedName);
       if (!saved) return;
       if (!saved.canceled && saved.path) {
@@ -51,7 +69,7 @@ export function SaveAudioButton({
       variant="ghost"
       size="sm"
       onClick={() => void save()}
-      disabled={disabled || saving || !url || !bridge}
+      disabled={disabled || saving || !url}
     >
       <DownloadIcon />
       {t('clone.download')}

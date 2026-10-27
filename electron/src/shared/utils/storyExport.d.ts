@@ -16,6 +16,7 @@ export interface RenderedChapter {
 }
 export function isChapterLine(text: string): boolean;
 export function chapterTitle(text: string): string;
+export function splitChapterTrack(text: string): { title: string; body: string } | null;
 export function formatTimecode(sec: number): string;
 /** `HH:MM:SS<TAB>Title` per cue, newline-joined, no trailing newline. */
 export function buildCueSheet(chapters: Cue[] | null | undefined): string;

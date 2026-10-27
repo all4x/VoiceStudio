@@ -1746,7 +1746,13 @@
     "global_speed_apply": "استخدمها لكل الأسطر",
     "deleteProjectConfirm": "هل تريد حذف هذا المشروع نهائيًا؟",
     "moveUp": "نقل لأعلى",
-    "moveDown": "نقل لأسفل"
+    "moveDown": "نقل لأسفل",
+    "exportStory": "تصدير القصة",
+    "exportStoryHint": "احفظ القصة مع الشخصيات والأصوات والسرعات والوسوم كملف ‎.txt‎ للتعديل أو إعادة الاستيراد",
+    "replaceStory": "استبدال القصة",
+    "replaceStoryConfirm": "استبدال الأسطر الحالية ({{count}}) بالقصة المستوردة؟ لا يمكن التراجع عن ذلك.",
+    "storyImported": "تم استيراد {{lines}} سطرًا من ملف القصة",
+    "storyImportedUnknown": "تم استيراد {{lines}} سطرًا — لا يوجد صوت مثبت يطابق: {{voices}}"
   },
   "audiobook": {
     "cast": "طاقم الأصوات",

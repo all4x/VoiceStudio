@@ -1738,7 +1738,13 @@
     "global_speed_apply": "Tüm satırlarda kullan",
     "deleteProjectConfirm": "Bu proje kalıcı olarak silinsin mi?",
     "moveUp": "Yukarı taşı",
-    "moveDown": "Aşağı taşı"
+    "moveDown": "Aşağı taşı",
+    "exportStory": "Hikâyeyi dışa aktar",
+    "exportStoryHint": "Hikâyeyi oyuncu kadrosu, sesler, hızlar ve etiketlerle düzenlenebilir veya yeniden içe aktarılabilir bir .txt olarak kaydet",
+    "replaceStory": "Hikâyeyi değiştir",
+    "replaceStoryConfirm": "Mevcut {{count}} satır içe aktarılan hikâyeyle değiştirilsin mi? Bu geri alınamaz.",
+    "storyImported": "Hikâye dosyasından {{lines}} satır içe aktarıldı",
+    "storyImportedUnknown": "{{lines}} satır içe aktarıldı — şu adlarla eşleşen yüklü ses yok: {{voices}}"
   },
   "audiobook": {
     "cast": "Kadro",

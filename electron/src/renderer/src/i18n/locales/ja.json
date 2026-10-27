@@ -1738,7 +1738,13 @@
     "global_speed_apply": "すべての行に適用",
     "deleteProjectConfirm": "このプロジェクトを完全に削除しますか？",
     "moveUp": "上に移動",
-    "moveDown": "下に移動"
+    "moveDown": "下に移動",
+    "exportStory": "ストーリーを書き出す",
+    "exportStoryHint": "キャスト・音声・速度・タグを含めてストーリーを .txt に保存し、編集や再読み込みに使えます",
+    "replaceStory": "ストーリーを置き換え",
+    "replaceStoryConfirm": "現在の {{count}} 行を読み込んだストーリーで置き換えますか？元に戻せません。",
+    "storyImported": "ストーリーファイルから {{lines}} 行を読み込みました",
+    "storyImportedUnknown": "{{lines}} 行を読み込みました — 一致するインストール済み音声がありません: {{voices}}"
   },
   "audiobook": {
     "cast": "キャスト",

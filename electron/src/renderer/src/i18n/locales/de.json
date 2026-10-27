@@ -1738,7 +1738,13 @@
     "global_speed_apply": "Für alle Zeilen verwenden",
     "deleteProjectConfirm": "Dieses Projekt dauerhaft löschen?",
     "moveUp": "Nach oben",
-    "moveDown": "Nach unten"
+    "moveDown": "Nach unten",
+    "exportStory": "Geschichte exportieren",
+    "exportStoryHint": "Speichert die Geschichte mit Besetzung, Stimmen, Tempo und Tags als .txt zum Bearbeiten oder erneuten Importieren",
+    "replaceStory": "Geschichte ersetzen",
+    "replaceStoryConfirm": "Die aktuellen {{count}} Zeilen durch die importierte Geschichte ersetzen? Dies kann nicht rückgängig gemacht werden.",
+    "storyImported": "{{lines}} Zeilen aus der Geschichtsdatei importiert",
+    "storyImportedUnknown": "{{lines}} Zeilen importiert — keine installierte Stimme passt zu: {{voices}}"
   },
   "audiobook": {
     "cast": "Besetzung",

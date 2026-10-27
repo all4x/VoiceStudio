@@ -1738,7 +1738,13 @@
     "global_speed_apply": "应用到所有行",
     "deleteProjectConfirm": "永久删除此项目？",
     "moveUp": "上移",
-    "moveDown": "下移"
+    "moveDown": "下移",
+    "exportStory": "导出故事",
+    "exportStoryHint": "将故事连同角色、声音、语速和标签保存为可编辑或重新导入的 .txt",
+    "replaceStory": "替换故事",
+    "replaceStoryConfirm": "用导入的故事替换当前 {{count}} 行？此操作无法撤销。",
+    "storyImported": "已从故事文件导入 {{lines}} 行",
+    "storyImportedUnknown": "已导入 {{lines}} 行 — 没有已安装的声音匹配：{{voices}}"
   },
   "audiobook": {
     "cast": "配音角色",

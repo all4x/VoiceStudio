@@ -4,6 +4,7 @@ import {
   BookOpenTextIcon,
   FileAudioIcon,
   FingerprintIcon,
+  FileDownIcon,
   ImportIcon,
   LanguagesIcon,
   Trash2Icon,
@@ -17,6 +18,7 @@ import { cueSheetFor } from './cue-sheet';
 import { saveLocalFile } from '@/lib/local-export';
 import { StoryCast, StoryEditor } from './story-editor';
 import { clearedScriptPatch, scriptSize } from './story-clear';
+import { isStoryText, parseStoryText, storyToText, type ParsedStory } from './story-text';
 import { ConfirmDialog } from '../clone/confirm-dialog';
 import { AudiobookMarkupToolbar } from './audiobook-markup-toolbar';
 import { storyVoicesReady } from './story-inputs';
@@ -87,6 +89,8 @@ export function LongformPage({ mode }: { mode: Mode }) {
   const [exporting, setExporting] = useState(false);
   const [warningsDismissed, setWarningsDismissed] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [pendingStory, setPendingStory] = useState<ParsedStory | null>(null);
+  const [storyNotice, setStoryNotice] = useState('');
   const audiobookInput = useRef<HTMLTextAreaElement>(null);
   const locked = !!session.active || importing;
   const scriptLines = scriptSize(mode, draft);
@@ -149,9 +153,17 @@ export function LongformPage({ mode }: { mode: Mode }) {
     setLocalError(null);
     try {
       let text: string;
-      if (mode === 'stories' && /\.(txt|md|srt|vtt)$/i.test(file.name))
-        text = importToText(file.name, await readTextFile(file));
-      else {
+      if (mode === 'stories' && /\.(txt|md|srt|vtt)$/i.test(file.name)) {
+        const raw = await readTextFile(file);
+        if (importEpoch !== storiesImportEpoch.current) return;
+        if (isStoryText(raw)) {
+          const parsed = parseStoryText(raw, profiles);
+          if (draft.lines.length) setPendingStory(parsed);
+          else applyStory(parsed);
+          return;
+        }
+        text = importToText(file.name, raw);
+      } else {
         const body = new FormData();
         body.set('file', file);
         const data = await apiJson<{ text: string }>('/audiobook/import', {
@@ -167,6 +179,31 @@ export function LongformPage({ mode }: { mode: Mode }) {
       setLocalError(describeError(cause));
     } finally {
       setImporting(false);
+    }
+  };
+  const applyStory = ({ patch, unknownVoices }: ParsedStory) => {
+    set({ ...patch, projectId: null, importText: '' });
+    setStoryNotice(
+      unknownVoices.length
+        ? t('stories.storyImportedUnknown', {
+            lines: patch.lines.length,
+            voices: unknownVoices.join(', '),
+          })
+        : t('stories.storyImported', { lines: patch.lines.length }),
+    );
+  };
+  const exportStory = async () => {
+    setLocalError(null);
+    try {
+      const name = (draft.title.trim() || t('stories.untitled')).replace(/[\\/:*?"<>|]+/g, '_');
+      await saveLocalFile(
+        new Blob([storyToText(draft, profiles)], {
+          type: 'text/plain;charset=utf-8',
+        }),
+        `${name}.txt`,
+      );
+    } catch (cause) {
+      setLocalError(describeError(cause));
     }
   };
   const download = async () => {
@@ -387,6 +424,18 @@ export function LongformPage({ mode }: { mode: Mode }) {
                   }}
                 />
               </label>
+              {mode === 'stories' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title={t('stories.exportStoryHint')}
+                  disabled={locked || draft.lines.length === 0}
+                  onClick={() => void exportStory()}
+                >
+                  <FileDownIcon />
+                  {t('stories.exportStory')}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -408,6 +457,19 @@ export function LongformPage({ mode }: { mode: Mode }) {
                 }
                 confirmLabel={t('stories.clearScript')}
                 onConfirm={() => set(clearedScriptPatch(mode))}
+              />
+              <ConfirmDialog
+                open={pendingStory !== null}
+                onOpenChange={(open) => !open && setPendingStory(null)}
+                title={t('stories.replaceStory')}
+                description={t('stories.replaceStoryConfirm', {
+                  count: draft.lines.length,
+                })}
+                confirmLabel={t('stories.replaceStory')}
+                onConfirm={() => {
+                  if (pendingStory) applyStory(pendingStory);
+                  setPendingStory(null);
+                }}
               />
               {mode === 'audiobook' && !draft.script.trim() && (
                 <Button
@@ -475,6 +537,11 @@ export function LongformPage({ mode }: { mode: Mode }) {
             )}
             {localError && (
               <PipelineFailure fallback={localError} onDismiss={() => setLocalError(null)} />
+            )}
+            {mode === 'stories' && storyNotice && (
+              <p role="status" className="text-xs text-muted-foreground">
+                {storyNotice}
+              </p>
             )}
             <EngineNotice operation={ttsOperation} />
             {session.storageError && (

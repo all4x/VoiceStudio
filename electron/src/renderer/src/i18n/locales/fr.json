@@ -1740,7 +1740,13 @@
     "global_speed_apply": "Appliquer à toutes les lignes",
     "deleteProjectConfirm": "Supprimer définitivement ce projet ?",
     "moveUp": "Monter",
-    "moveDown": "Descendre"
+    "moveDown": "Descendre",
+    "exportStory": "Exporter l'histoire",
+    "exportStoryHint": "Enregistre l'histoire avec distribution, voix, vitesses et balises dans un .txt modifiable ou réimportable",
+    "replaceStory": "Remplacer l'histoire",
+    "replaceStoryConfirm": "Remplacer les {{count}} lignes actuelles par l'histoire importée ? Action irréversible.",
+    "storyImported": "{{lines}} lignes importées depuis le fichier d'histoire",
+    "storyImportedUnknown": "{{lines}} lignes importées — aucune voix installée ne correspond à : {{voices}}"
   },
   "audiobook": {
     "cast": "Distribution",

@@ -1738,7 +1738,13 @@
     "global_speed_apply": "Gunakan untuk semua baris",
     "deleteProjectConfirm": "Hapus proyek ini secara permanen?",
     "moveUp": "Pindah ke atas",
-    "moveDown": "Pindah ke bawah"
+    "moveDown": "Pindah ke bawah",
+    "exportStory": "Ekspor cerita",
+    "exportStoryHint": "Simpan cerita beserta pemeran, suara, kecepatan, dan tag sebagai .txt untuk diedit atau diimpor ulang",
+    "replaceStory": "Ganti cerita",
+    "replaceStoryConfirm": "Ganti {{count}} baris saat ini dengan cerita yang diimpor? Tindakan ini tidak dapat dibatalkan.",
+    "storyImported": "{{lines}} baris diimpor dari file cerita",
+    "storyImportedUnknown": "{{lines}} baris diimpor — tidak ada suara terpasang yang cocok: {{voices}}"
   },
   "audiobook": {
     "cast": "Pemeran",

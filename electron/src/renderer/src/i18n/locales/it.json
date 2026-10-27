@@ -1740,7 +1740,13 @@
     "global_speed_apply": "Usa per tutte le righe",
     "deleteProjectConfirm": "Eliminare definitivamente questo progetto?",
     "moveUp": "Sposta su",
-    "moveDown": "Sposta giù"
+    "moveDown": "Sposta giù",
+    "exportStory": "Esporta storia",
+    "exportStoryHint": "Salva la storia con cast, voci, velocità e tag in un .txt modificabile o reimportabile",
+    "replaceStory": "Sostituisci storia",
+    "replaceStoryConfirm": "Sostituire le {{count}} righe attuali con la storia importata? L'operazione non può essere annullata.",
+    "storyImported": "Importate {{lines}} righe dal file della storia",
+    "storyImportedUnknown": "Importate {{lines}} righe — nessuna voce installata corrisponde a: {{voices}}"
   },
   "audiobook": {
     "cast": "Cast",

@@ -5,6 +5,7 @@ import {
   encodeWav,
   isChapterLine,
   chapterTitle,
+  splitChapterTrack,
   formatTimecode,
   tracksByCharacter,
   buildCueSheet,
@@ -97,6 +98,16 @@ describe('tracksByCharacter', () => {
     expect(groups.map((g) => g.character)).toEqual(['narrator', 'fox']);
     expect(groups[0].tracks).toHaveLength(2);
     expect(groups[1].tracks).toHaveLength(1);
+  });
+  it('keeps a track whose heading line is followed by spoken text', () => {
+    expect(splitChapterTrack('# Chapter 1\nOnce upon a time.')).toEqual({
+      title: 'Chapter 1',
+      body: 'Once upon a time.',
+    });
+    expect(splitChapterTrack('# Chapter 1')).toEqual({ title: 'Chapter 1', body: '' });
+    expect(splitChapterTrack('Once.\n# Not first')).toBeNull();
+    const groups = tracksByCharacter([{ character: 'narrator', text: '# Chapter 1\nOnce.' }]);
+    expect(groups.map((g) => g.character)).toEqual(['narrator']);
   });
 });
 

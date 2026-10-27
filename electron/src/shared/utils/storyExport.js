@@ -77,6 +77,20 @@ export function chapterTitle(text) {
     .trim();
 }
 
+/**
+ * A Stories track whose FIRST line is a chapter heading: the heading opens the
+ * chapter and any lines below it are still spoken. Without the split, a cell
+ * like "# Chapter 1\nOnce upon a time…" was swallowed whole as a title.
+ * @returns {{ title: string, body: string } | null}
+ */
+export function splitChapterTrack(text) {
+  const [first, ...rest] = String(text || '')
+    .trim()
+    .split('\n');
+  if (!isChapterLine(first)) return null;
+  return { title: chapterTitle(first), body: rest.join('\n').trim() };
+}
+
 /** Format seconds as HH:MM:SS for a chapter cue sheet. */
 export function formatTimecode(sec) {
   const s = Math.max(0, Math.floor(sec || 0));
@@ -91,7 +105,8 @@ export function tracksByCharacter(tracks) {
   const groups = [];
   const idx = Object.create(null);
   for (const tk of tracks || []) {
-    if (isChapterLine(tk.text)) continue;
+    const chapter = splitChapterTrack(tk.text);
+    if (chapter && !chapter.body) continue;
     const key = tk.character || 'narrator';
     if (!(key in idx)) {
       idx[key] = groups.length;
@@ -221,12 +236,12 @@ export async function exportStoryAudio(tracks, resolveOpts, fetchChunkBlob, onPr
   try {
     const plan = [];
     for (const tk of tracks) {
-      if (isChapterLine(tk.text)) {
-        plan.push({ chapter: chapterTitle(tk.text) });
-        continue;
-      }
+      const chapter = splitChapterTrack(tk.text);
+      if (chapter) plan.push({ chapter: chapter.title });
+      const body = chapter ? chapter.body : tk.text || '';
+      if (!body) continue;
       const opts = resolveOpts(tk) || {};
-      for (const span of parseChapterBody(tk.text || '', {
+      for (const span of parseChapterBody(body, {
         defaultVoice: opts.profileId,
         defaultSpeed: opts.speed,
       })) {

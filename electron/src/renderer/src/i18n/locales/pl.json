@@ -1742,7 +1742,13 @@
     "global_speed_apply": "Użyj dla wszystkich wierszy",
     "deleteProjectConfirm": "Usunąć ten projekt na stałe?",
     "moveUp": "Przenieś w górę",
-    "moveDown": "Przenieś w dół"
+    "moveDown": "Przenieś w dół",
+    "exportStory": "Eksportuj historię",
+    "exportStoryHint": "Zapisz historię z obsadą, głosami, tempem i tagami jako .txt do edycji lub ponownego importu",
+    "replaceStory": "Zastąp historię",
+    "replaceStoryConfirm": "Zastąpić bieżące {{count}} linie zaimportowaną historią? Tej operacji nie można cofnąć.",
+    "storyImported": "Zaimportowano {{lines}} linii z pliku historii",
+    "storyImportedUnknown": "Zaimportowano {{lines}} linii — żaden zainstalowany głos nie pasuje do: {{voices}}"
   },
   "audiobook": {
     "cast": "Obsada",

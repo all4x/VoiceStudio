@@ -1,9 +1,10 @@
-import { AudioLinesIcon, XIcon } from 'lucide-react';
+import { AudioLinesIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { SaveAudioButton } from '@/components/save-audio-button';
 import { WaveformPlayer } from '@/components/waveform-player';
 import { audioUrl } from '@/lib/api/client';
+import { useDeleteHistoryItem } from '@/hooks/use-history';
 import { clearLatestOutput, useLatestOutput } from '@/lib/store/output';
 import { activePlaybackSource, stopActivePlayback } from '@/lib/audio/playback';
 import { formatSeconds } from './format';
@@ -14,7 +15,13 @@ import { SectionLabel } from './section-label';
 export function OutputPanel() {
   const { t } = useTranslation();
   const { result, objectUrl, text } = useLatestOutput();
+  const deleteTake = useDeleteHistoryItem();
   if (!result || !objectUrl) return null;
+
+  const dismiss = () => {
+    if (activePlaybackSource() === 'output') stopActivePlayback();
+    clearLatestOutput();
+  };
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
@@ -37,12 +44,23 @@ export function OutputPanel() {
             <Button
               variant="ghost"
               size="icon-sm"
+              className="text-muted-foreground hover:text-destructive"
+              aria-label={t('clone.history_delete')}
+              title={t('clone.history_delete')}
+              disabled={deleteTake.isPending}
+              onClick={() => {
+                if (!result.id) return dismiss();
+                deleteTake.mutate(result.id, { onSuccess: dismiss });
+              }}
+            >
+              <Trash2Icon />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
               aria-label={t('common.close')}
               title={t('common.close')}
-              onClick={() => {
-                if (activePlaybackSource() === 'output') stopActivePlayback();
-                clearLatestOutput();
-              }}
+              onClick={dismiss}
             >
               <XIcon />
             </Button>

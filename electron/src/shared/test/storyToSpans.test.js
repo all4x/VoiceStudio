@@ -8,6 +8,20 @@ const CAST = [
 ];
 
 describe('storyToSpans', () => {
+  it('speaks the body of a track whose first line is a chapter heading', () => {
+    const chapters = storyToSpans(
+      [
+        { character: 'narrator', text: '# Chapter 1\nOnce upon a time.' },
+        { character: 'c_fox', text: 'Hi.' },
+      ],
+      CAST,
+    );
+    expect(chapters.map((c) => c.title)).toEqual(['Chapter 1']);
+    expect(chapters[0].spans.map((s) => [s.voice_id, s.text])).toEqual([
+      ['p_narr', 'Once upon a time.'],
+      ['p_fox', 'Hi.'],
+    ]);
+  });
   it('compiles the bundled Stories demo through the real render plan', () => {
     const cast = SAMPLE_STORY_CAST.map((member) => ({
       ...member,
